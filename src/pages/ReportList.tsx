@@ -4,10 +4,15 @@ import { FileBarChart, Download, Eye, Calendar } from "lucide-react";
 import { useStore } from "@/store";
 import { TASK_STATUS_LABELS } from "@/types";
 import { cn } from "@/lib/utils";
+import { generateTaskPDF } from "@/lib/pdfGenerator";
 
 export default function ReportList() {
   const tasks = useStore((s) => s.tasks);
   const completedTasks = tasks.filter((t) => t.status === "COMPLETED");
+
+  const handleDownloadPDF = (task: Parameters<typeof generateTaskPDF>[0]) => {
+    generateTaskPDF(task);
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -77,6 +82,7 @@ export default function ReportList() {
                   查看
                 </Link>
                 <button
+                  onClick={() => handleDownloadPDF(task)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-600/20 text-amber-300 text-sm hover:bg-amber-600/30 transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -40,7 +40,15 @@ const ENV_FIELDS = [
   { source: "source", target: "数据来源", required: false },
 ];
 
-function validateFile(file: File, dataType: DataType): { valid: boolean; errors: string[]; recordCount: number; fieldResults: { source: string; target: string; required: boolean; passed: boolean }[] } {
+function validateFile(
+  file: File,
+  dataType: DataType
+): {
+  valid: boolean;
+  errors: string[];
+  recordCount: number;
+  fieldResults: { source: string; target: string; required: boolean; passed: boolean }[];
+} {
   const errors: string[] = [];
   const ext = file.name.split(".").pop()?.toLowerCase() || "";
   const fields = dataType === "SPECIES_DISTRIBUTION" ? SPECIES_FIELDS : ENV_FIELDS;
@@ -68,12 +76,7 @@ function validateFile(file: File, dataType: DataType): { valid: boolean; errors:
     ? Math.floor(Math.random() * 8000 + 500)
     : 0;
 
-  return {
-    valid: errors.length === 0,
-    errors,
-    recordCount,
-    fieldResults,
-  };
+  return { valid: errors.length === 0, errors, recordCount, fieldResults };
 }
 
 export default function DataUpload() {
@@ -85,76 +88,125 @@ export default function DataUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [createdDataset, setCreatedDataset] = useState<Dataset | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [fieldResults, setFieldResults] = useState<{ source: string; target: string; required: boolean; passed: boolean }[]>([]);
+  const [fieldResults, setFieldResults] = useState<
+    { source: string; target: string; required: boolean; passed: boolean }[]
+  >([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const ACCEPT_TYPES = dataType === "SPECIES_DISTRIBUTION" ? ".csv" : ".tif,.nc,.csv";
 
-  const processFile = useCallback((file: File) => {
-    setSelectedFile(file);
-    setStep("uploading");
-    setProgress(0);
-
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setStep("validating");
-          return 100;
-        }
-        return prev + Math.random() * 15 + 5;
-      });
-    }, 150);
+  const clearTimers = useCallback(() => {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
   }, []);
 
-  const startValidation = useCallback(() => {
-    if (!selectedFile) return;
+  const reset = useCallback(() => {
+    clearTimers();
+    setStep("select");
+    setProgress(0);
+    setSelectedFile(null);
+    setCreatedDataset(null);
+    setValidationErrors([]);
+    setFieldResults([]);
+  }, [clearTimers]);
 
-    const result = validateFile(selectedFile, dataType);
+  const runValidation = useCallback(
+    (file: File, type: DataType) => {
+      setStep("validating");
 
-    setTimeout(() => {
-      if (result.valid) {
-        const datasetName = dataType === "SPECIES_DISTRIBUTION"
-          ? selectedFile.name.replace(/\.[^.]+$/, "") + "分布数据集"
-          : selectedFile.name.replace(/\.[^.]+$/, "") + "环境数据集";
+      const result = validateFile(file, type);
 
-        const newDataset: Dataset = {
-          id: `ds_${Date.now()}`,
-          name: datasetName,
-          type: dataType as DatasetType,
-          fileName: selectedFile.name,
-          status: "VALID",
-          uploadedBy: "当前用户",
-          uploadedAt: new Date().toISOString(),
-          recordCount: result.recordCount,
-        };
-        addDataset(newDataset);
-        setCreatedDataset(newDataset);
-        setFieldResults(result.fieldResults);
-        setStep("success");
-      } else {
-        const datasetName = dataType === "SPECIES_DISTRIBUTION"
-          ? selectedFile.name.replace(/\.[^.]+$/, "") + "分布数据集"
-          : selectedFile.name.replace(/\.[^.]+$/, "") + "环境数据集";
+      setTimeout(() => {
+        const datasetName =
+          type === "SPECIES_DISTRIBUTION"
+            ? file.name.replace(/\.[^.]+$/, "") + "分布数据集"
+            : file.name.replace(/\.[^.]+$/, "") + "环境数据集";
 
-        const newDataset: Dataset = {
-          id: `ds_${Date.now()}`,
-          name: datasetName,
-          type: dataType as DatasetType,
-          fileName: selectedFile.name,
-          status: "INVALID",
-          uploadedBy: "当前用户",
-          uploadedAt: new Date().toISOString(),
-          recordCount: 0,
-        };
-        addDataset(newDataset);
-        setCreatedDataset(newDataset);
-        setValidationErrors(result.errors);
-        setFieldResults(result.fieldResults);
-        setStep("error");
-      }
-    }, 1000);
-  }, [selectedFile, dataType, addDataset]);
+        if (result.valid) {
+          const newDataset: Dataset = {
+            id: `ds_${Date.now()}`,
+            name: datasetName,
+            type: type as DatasetType,
+            fileName: file.name,
+            status: "VALID",
+            uploadedBy: "当前用户",
+            uploadedAt: new Date().toISOString(),
+            recordCount: result.recordCount,
+          };
+          addDataset(newDataset);
+          setCreatedDataset(newDataset);
+          setFieldResults(result.fieldResults);
+          setValidationErrors([]);
+          setStep("success");
+        } else {
+          const newDataset: Dataset = {
+            id: `ds_${Date.now()}`,
+            name: datasetName,
+            type: type as DatasetType,
+            fileName: file.name,
+            status: "INVALID",
+            uploadedBy: "当前用户",
+            uploadedAt: new Date().toISOString(),
+            recordCount: 0,
+          };
+          addDataset(newDataset);
+          setCreatedDataset(newDataset);
+          setValidationErrors(result.errors);
+          setFieldResults(result.fieldResults);
+          setStep("error");
+        }
+      }, 1500);
+    },
+    [addDataset]
+  );
+
+  const processFile = useCallback(
+    (file: File) => {
+      clearTimers();
+      setSelectedFile(file);
+      setCreatedDataset(null);
+      setValidationErrors([]);
+      setFieldResults([]);
+      setStep("uploading");
+      setProgress(0);
+
+      const uploadType = dataType;
+      let currentProgress = 0;
+
+      progressTimerRef.current = setInterval(() => {
+        currentProgress += Math.random() * 18 + 6;
+        if (currentProgress >= 100) {
+          currentProgress = 100;
+          setProgress(100);
+          if (progressTimerRef.current) {
+            clearInterval(progressTimerRef.current);
+            progressTimerRef.current = null;
+          }
+          runValidation(file, uploadType);
+        } else {
+          setProgress(currentProgress);
+        }
+      }, 150);
+    },
+    [clearTimers, dataType, runValidation]
+  );
+
+  useEffect(() => {
+    return () => {
+      clearTimers();
+    };
+  }, [clearTimers]);
+
+  const handleDataTypeChange = useCallback(
+    (newType: DataType) => {
+      setDataType(newType);
+      reset();
+    },
+    [reset]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -197,17 +249,7 @@ export default function DataUpload() {
     [processFile]
   );
 
-  const reset = () => {
-    setStep("select");
-    setProgress(0);
-    setSelectedFile(null);
-    setCreatedDataset(null);
-    setValidationErrors([]);
-    setFieldResults([]);
-  };
-
-  const fields = dataType === "SPECIES_DISTRIBUTION" ? SPECIES_FIELDS : ENV_FIELDS;
-  const displayFields = fieldResults.length > 0 ? fieldResults : fields.map((f) => ({ ...f, passed: false }));
+  const displayFields = fieldResults;
 
   return (
     <div className="min-h-screen p-6 space-y-6 font-body max-w-3xl mx-auto">
@@ -246,7 +288,7 @@ export default function DataUpload() {
             {DATA_TYPE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
-                onClick={() => { setDataType(opt.value); reset(); }}
+                onClick={() => handleDataTypeChange(opt.value)}
                 className={cn(
                   "flex-1 px-4 py-3 rounded-xl text-sm font-medium transition-all border",
                   dataType === opt.value
@@ -326,14 +368,14 @@ export default function DataUpload() {
                 <div className="w-full space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-forest-300 font-medium">上传中...</span>
-                    <span className="text-forest-400 font-mono">{Math.min(Math.round(progress), 100)}%</span>
+                    <span className="text-forest-400 font-mono">
+                      {Math.min(Math.round(progress), 100)}%
+                    </span>
                   </div>
                   <div className="w-full h-2 bg-forest-700/50 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-forest-500 to-emerald-400 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(progress, 100)}%` }}
-                      transition={{ ease: "easeOut" }}
+                    <div
+                      className="h-full bg-gradient-to-r from-forest-500 to-emerald-400 rounded-full transition-all duration-150 ease-out"
+                      style={{ width: `${Math.min(progress, 100)}%` }}
                     />
                   </div>
                   <p className="text-xs text-forest-500 text-center font-mono">
@@ -341,16 +383,6 @@ export default function DataUpload() {
                   </p>
                 </div>
               </div>
-              {progress >= 100 && (
-                <div className="mt-4 flex justify-center">
-                  <button
-                    onClick={startValidation}
-                    className="px-5 py-2 rounded-lg bg-forest-500 hover:bg-forest-600 text-forest-50 text-sm font-medium transition-colors shadow-lg shadow-forest-500/20"
-                  >
-                    开始校验
-                  </button>
-                </div>
-              )}
             </motion.div>
           )}
 
@@ -382,7 +414,11 @@ export default function DataUpload() {
               className="space-y-4"
             >
               <div className="bg-forest-800/50 border border-emerald-500/30 rounded-xl p-8 card-glow text-center">
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, delay: 0.2 }}>
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 400, delay: 0.2 }}
+                >
                   <CheckCircle2 className="w-14 h-14 text-emerald-400 mx-auto mb-4" />
                 </motion.div>
                 <h3 className="text-lg font-semibold text-forest-50 mb-2">上传并校验成功</h3>
@@ -392,51 +428,69 @@ export default function DataUpload() {
                   <span className="text-forest-400">文件名</span>
                   <span className="text-forest-100 font-mono text-xs">{createdDataset.fileName}</span>
                   <span className="text-forest-400">记录数</span>
-                  <span className="text-forest-100 font-mono">{createdDataset.recordCount.toLocaleString()}</span>
+                  <span className="text-forest-100 font-mono">
+                    {createdDataset.recordCount.toLocaleString()}
+                  </span>
                   <span className="text-forest-400">校验状态</span>
                   <span className="text-emerald-400 font-medium">校验通过</span>
                 </div>
               </div>
 
-              <div className="bg-forest-800/50 border border-forest-500/20 rounded-xl p-5 card-glow">
-                <h4 className="text-sm font-semibold text-forest-200 mb-4">字段校验结果</h4>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-forest-400 border-b border-forest-500/20">
-                      <th className="text-left py-2 font-medium">源字段</th>
-                      <th className="text-left py-2 font-medium">目标字段</th>
-                      <th className="text-center py-2 font-medium">必填</th>
-                      <th className="text-center py-2 font-medium">校验</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayFields.map((f, i) => (
-                      <motion.tr
-                        key={f.source}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.3 + i * 0.06 }}
-                        className="border-b border-forest-500/10 last:border-0"
-                      >
-                        <td className="py-2.5 font-mono text-forest-300">{f.source}</td>
-                        <td className="py-2.5 text-forest-100">{f.target}</td>
-                        <td className="py-2.5 text-center">
-                          {f.required ? <span className="text-emerald-400 text-xs">必填</span> : <span className="text-forest-600 text-xs">可选</span>}
-                        </td>
-                        <td className="py-2.5 text-center">
-                          {f.passed ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" /> : <XCircle className="w-4 h-4 text-red-400 mx-auto" />}
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {displayFields.length > 0 && (
+                <div className="bg-forest-800/50 border border-forest-500/20 rounded-xl p-5 card-glow">
+                  <h4 className="text-sm font-semibold text-forest-200 mb-4">字段校验结果</h4>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-forest-400 border-b border-forest-500/20">
+                        <th className="text-left py-2 font-medium">源字段</th>
+                        <th className="text-left py-2 font-medium">目标字段</th>
+                        <th className="text-center py-2 font-medium">必填</th>
+                        <th className="text-center py-2 font-medium">校验</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayFields.map((f, i) => (
+                        <motion.tr
+                          key={f.source}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.3 + i * 0.06 }}
+                          className="border-b border-forest-500/10 last:border-0"
+                        >
+                          <td className="py-2.5 font-mono text-forest-300">{f.source}</td>
+                          <td className="py-2.5 text-forest-100">{f.target}</td>
+                          <td className="py-2.5 text-center">
+                            {f.required ? (
+                              <span className="text-emerald-400 text-xs">必填</span>
+                            ) : (
+                              <span className="text-forest-600 text-xs">可选</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 text-center">
+                            {f.passed ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-400 mx-auto" />
+                            )}
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
               <div className="flex gap-3 justify-center pt-2">
-                <Link to="/data" className="px-5 py-2.5 rounded-xl text-sm font-medium bg-forest-500 hover:bg-forest-600 text-forest-50 transition-colors shadow-lg shadow-forest-500/20">
+                <Link
+                  to="/data"
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium bg-forest-500 hover:bg-forest-600 text-forest-50 transition-colors shadow-lg shadow-forest-500/20"
+                >
                   返回数据管理
                 </Link>
-                <button onClick={reset} className="px-5 py-2.5 rounded-xl text-sm font-medium bg-forest-800/50 border border-forest-500/20 text-forest-300 hover:text-forest-100 hover:border-forest-500/40 transition-colors">
+                <button
+                  onClick={reset}
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium bg-forest-800/50 border border-forest-500/20 text-forest-300 hover:text-forest-100 hover:border-forest-500/40 transition-colors"
+                >
                   继续上传
                 </button>
               </div>
@@ -452,7 +506,11 @@ export default function DataUpload() {
               className="space-y-4"
             >
               <div className="bg-forest-800/50 border border-red-500/30 rounded-xl p-8 card-glow text-center">
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, delay: 0.2 }}>
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 400, delay: 0.2 }}
+                >
                   <XCircle className="w-14 h-14 text-red-400 mx-auto mb-4" />
                 </motion.div>
                 <h3 className="text-lg font-semibold text-forest-50 mb-2">校验未通过</h3>
@@ -465,42 +523,68 @@ export default function DataUpload() {
                 <div className="bg-red-500/10 rounded-lg p-4 max-w-md mx-auto">
                   <p className="text-sm font-medium text-red-300 mb-2">错误信息:</p>
                   {validationErrors.map((err, i) => (
-                    <p key={i} className="text-sm text-red-400 text-left">• {err}</p>
+                    <p key={i} className="text-sm text-red-400 text-left">
+                      • {err}
+                    </p>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-forest-800/50 border border-forest-500/20 rounded-xl p-5 card-glow">
-                <h4 className="text-sm font-semibold text-forest-200 mb-4">字段校验结果</h4>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-forest-400 border-b border-forest-500/20">
-                      <th className="text-left py-2 font-medium">源字段</th>
-                      <th className="text-left py-2 font-medium">目标字段</th>
-                      <th className="text-center py-2 font-medium">必填</th>
-                      <th className="text-center py-2 font-medium">校验</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayFields.map((f, i) => (
-                      <motion.tr key={f.source} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 + i * 0.06 }} className="border-b border-forest-500/10 last:border-0">
-                        <td className="py-2.5 font-mono text-forest-300">{f.source}</td>
-                        <td className="py-2.5 text-forest-100">{f.target}</td>
-                        <td className="py-2.5 text-center">{f.required ? <span className="text-emerald-400 text-xs">必填</span> : <span className="text-forest-600 text-xs">可选</span>}</td>
-                        <td className="py-2.5 text-center">
-                          {f.passed ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" /> : <XCircle className="w-4 h-4 text-red-400 mx-auto" />}
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {displayFields.length > 0 && (
+                <div className="bg-forest-800/50 border border-forest-500/20 rounded-xl p-5 card-glow">
+                  <h4 className="text-sm font-semibold text-forest-200 mb-4">字段校验结果</h4>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-forest-400 border-b border-forest-500/20">
+                        <th className="text-left py-2 font-medium">源字段</th>
+                        <th className="text-left py-2 font-medium">目标字段</th>
+                        <th className="text-center py-2 font-medium">必填</th>
+                        <th className="text-center py-2 font-medium">校验</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayFields.map((f, i) => (
+                        <motion.tr
+                          key={f.source}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.3 + i * 0.06 }}
+                          className="border-b border-forest-500/10 last:border-0"
+                        >
+                          <td className="py-2.5 font-mono text-forest-300">{f.source}</td>
+                          <td className="py-2.5 text-forest-100">{f.target}</td>
+                          <td className="py-2.5 text-center">
+                            {f.required ? (
+                              <span className="text-emerald-400 text-xs">必填</span>
+                            ) : (
+                              <span className="text-forest-600 text-xs">可选</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 text-center">
+                            {f.passed ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-400 mx-auto" />
+                            )}
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
               <div className="flex gap-3 justify-center pt-2">
-                <Link to="/data" className="px-5 py-2.5 rounded-xl text-sm font-medium bg-forest-500 hover:bg-forest-600 text-forest-50 transition-colors shadow-lg shadow-forest-500/20">
+                <Link
+                  to="/data"
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium bg-forest-500 hover:bg-forest-600 text-forest-50 transition-colors shadow-lg shadow-forest-500/20"
+                >
                   返回数据管理
                 </Link>
-                <button onClick={reset} className="px-5 py-2.5 rounded-xl text-sm font-medium bg-forest-800/50 border border-forest-500/20 text-forest-300 hover:text-forest-100 hover:border-forest-500/40 transition-colors">
+                <button
+                  onClick={reset}
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium bg-forest-800/50 border border-forest-500/20 text-forest-300 hover:text-forest-100 hover:border-forest-500/40 transition-colors"
+                >
                   重新上传
                 </button>
               </div>
