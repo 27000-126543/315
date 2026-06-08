@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  font-family: "Noto Sans SC", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: #0D1B16;
+  color: #E8F5E9;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #091210;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2D6A4F;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1B4332;
+}
+
+.leaflet-container {
+  background: #091210;
+  border-radius: 12px;
+}
+
+@layer components {
+  .card-glow {
+    box-shadow: 0 0 20px rgba(45, 106, 79, 0.15);
+  }
+
+  .card-glow:hover {
+    box-shadow: 0 0 30px rgba(45, 106, 79, 0.25);
+  }
+
+  .stat-gradient-green {
+    background: linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%);
+  }
+
+  .stat-gradient-amber {
+    background: linear-gradient(135deg, #8B6914 0%, #D4A017 100%);
+  }
+
+  .stat-gradient-red {
+    background: linear-gradient(135deg, #991B1B 0%, #C1292E 100%);
+  }
+
+  .stat-gradient-blue {
+    background: linear-gradient(135deg, #1E3A5F 0%, #1E6091 100%);
+  }
+
+  .topo-bg {
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(45, 106, 79, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(139, 105, 20, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(30, 96, 145, 0.05) 0%, transparent 50%);
+  }
+}
