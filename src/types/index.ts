@@ -31,6 +31,23 @@ export interface Species {
   isPaused: boolean;
 }
 
+export interface FieldValidation {
+  source: string;
+  target: string;
+  required: boolean;
+  passed: boolean;
+  sampleValue?: string;
+  typeCheck?: "OK" | "MISMATCH" | "MISSING";
+}
+
+export interface RasterMetadata {
+  spatialExtent: string;
+  resolution: string;
+  timeDimension: string;
+  crs: string;
+  bandCount: number;
+}
+
 export interface Dataset {
   id: string;
   name: string;
@@ -40,6 +57,10 @@ export interface Dataset {
   uploadedBy: string;
   uploadedAt: string;
   recordCount: number;
+  fieldValidations?: FieldValidation[];
+  validationErrors?: string[];
+  rasterMetadata?: RasterMetadata;
+  csvPreview?: { headers: string[]; rows: string[][] };
 }
 
 export interface SimulationTask {

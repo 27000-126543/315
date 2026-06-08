@@ -83,10 +83,54 @@ const initialSpecies: Species[] = [
 ];
 
 const initialDatasets: Dataset[] = [
-  { id: "ds1", name: "华南虎分布调查2025", type: "SPECIES_DISTRIBUTION", fileName: "tiger_distribution_2025.csv", status: "VALID", uploadedBy: "张研究员", uploadedAt: "2025-12-01T08:30:00Z", recordCount: 1520 },
-  { id: "ds2", name: "秦岭环境变量", type: "ENVIRONMENTAL", fileName: "qinling_env_2025.tif", status: "VALID", uploadedBy: "李研究员", uploadedAt: "2025-11-28T14:20:00Z", recordCount: 8500 },
-  { id: "ds3", name: "大熊猫栖息地数据", type: "SPECIES_DISTRIBUTION", fileName: "panda_habitat_2025.csv", status: "VALID", uploadedBy: "王研究员", uploadedAt: "2025-12-03T09:10:00Z", recordCount: 3200 },
-  { id: "ds4", name: "长江流域气候数据", type: "ENVIRONMENTAL", fileName: "yangtze_climate_2025.nc", status: "VALID", uploadedBy: "赵研究员", uploadedAt: "2025-12-05T11:45:00Z", recordCount: 12000 },
+  {
+    id: "ds1", name: "华南虎分布调查2025", type: "SPECIES_DISTRIBUTION", fileName: "tiger_distribution_2025.csv", status: "VALID", uploadedBy: "张研究员", uploadedAt: "2025-12-01T08:30:00Z", recordCount: 1520,
+    fieldValidations: [
+      { source: "species_name", target: "物种名称", required: true, passed: true, sampleValue: "Panthera tigris amoyensis", typeCheck: "OK" },
+      { source: "latitude", target: "纬度", required: true, passed: true, sampleValue: "29.5631", typeCheck: "OK" },
+      { source: "longitude", target: "经度", required: true, passed: true, sampleValue: "115.8925", typeCheck: "OK" },
+      { source: "observation_date", target: "观测日期", required: true, passed: true, sampleValue: "2025-03-15", typeCheck: "OK" },
+      { source: "observer", target: "观测者", required: false, passed: true, sampleValue: "张研究员", typeCheck: "OK" },
+      { source: "abundance", target: "丰度", required: false, passed: true, sampleValue: "3", typeCheck: "OK" },
+    ],
+    csvPreview: { headers: ["species_name", "latitude", "longitude", "observation_date", "observer", "abundance"], rows: [["Panthera tigris amoyensis", "29.5631", "115.8925", "2025-03-15", "张研究员", "3"], ["Panthera tigris amoyensis", "28.7412", "114.3281", "2025-04-02", "李研究员", "1"], ["Panthera tigris amoyensis", "30.1298", "116.5124", "2025-05-10", "王研究员", "2"]] },
+  },
+  {
+    id: "ds2", name: "秦岭环境变量", type: "ENVIRONMENTAL", fileName: "qinling_env_2025.tif", status: "VALID", uploadedBy: "李研究员", uploadedAt: "2025-11-28T14:20:00Z", recordCount: 8500,
+    fieldValidations: [
+      { source: "bio_variable", target: "环境变量名", required: true, passed: true, sampleValue: "bio1_annual_mean_temp", typeCheck: "OK" },
+      { source: "value", target: "变量值", required: true, passed: true, sampleValue: "12.35", typeCheck: "OK" },
+      { source: "lat", target: "纬度", required: true, passed: true, sampleValue: "33.75", typeCheck: "OK" },
+      { source: "lon", target: "经度", required: true, passed: true, sampleValue: "107.82", typeCheck: "OK" },
+      { source: "timestamp", target: "时间戳", required: true, passed: true, sampleValue: "2025-01-01", typeCheck: "OK" },
+      { source: "source", target: "数据来源", required: false, passed: true, sampleValue: "WorldClim v2.1", typeCheck: "OK" },
+    ],
+    rasterMetadata: { spatialExtent: "107.5°E-109.5°E, 32.8°N-34.5°N", resolution: "30 arc-seconds (~1km)", timeDimension: "2025-01 至 2025-12", crs: "WGS84 (EPSG:4326)", bandCount: 19 },
+  },
+  {
+    id: "ds3", name: "大熊猫栖息地数据", type: "SPECIES_DISTRIBUTION", fileName: "panda_habitat_2025.csv", status: "VALID", uploadedBy: "王研究员", uploadedAt: "2025-12-03T09:10:00Z", recordCount: 3200,
+    fieldValidations: [
+      { source: "species_name", target: "物种名称", required: true, passed: true, sampleValue: "Ailuropoda melanoleuca", typeCheck: "OK" },
+      { source: "latitude", target: "纬度", required: true, passed: true, sampleValue: "33.4512", typeCheck: "OK" },
+      { source: "longitude", target: "经度", required: true, passed: true, sampleValue: "107.7834", typeCheck: "OK" },
+      { source: "observation_date", target: "观测日期", required: true, passed: true, sampleValue: "2025-06-20", typeCheck: "OK" },
+      { source: "observer", target: "观测者", required: false, passed: true, sampleValue: "王研究员", typeCheck: "OK" },
+      { source: "abundance", target: "丰度", required: false, passed: false, sampleValue: "-", typeCheck: "MISSING" },
+    ],
+    csvPreview: { headers: ["species_name", "latitude", "longitude", "observation_date", "observer"], rows: [["Ailuropoda melanoleuca", "33.4512", "107.7834", "2025-06-20", "王研究员"], ["Ailuropoda melanoleuca", "33.5201", "107.6952", "2025-07-05", "赵研究员"], ["Ailuropoda melanoleuca", "33.3897", "107.8201", "2025-07-18", "李研究员"]] },
+  },
+  {
+    id: "ds4", name: "长江流域气候数据", type: "ENVIRONMENTAL", fileName: "yangtze_climate_2025.nc", status: "VALID", uploadedBy: "赵研究员", uploadedAt: "2025-12-05T11:45:00Z", recordCount: 12000,
+    fieldValidations: [
+      { source: "bio_variable", target: "环境变量名", required: true, passed: true, sampleValue: "precipitation", typeCheck: "OK" },
+      { source: "value", target: "变量值", required: true, passed: true, sampleValue: "856.2", typeCheck: "OK" },
+      { source: "lat", target: "纬度", required: true, passed: true, sampleValue: "30.25", typeCheck: "OK" },
+      { source: "lon", target: "经度", required: true, passed: true, sampleValue: "112.35", typeCheck: "OK" },
+      { source: "timestamp", target: "时间戳", required: true, passed: true, sampleValue: "2025-06-01", typeCheck: "OK" },
+      { source: "source", target: "数据来源", required: false, passed: false, sampleValue: "-", typeCheck: "MISSING" },
+    ],
+    rasterMetadata: { spatialExtent: "90°E-122°E, 24°N-35°N", resolution: "0.25° (~25km)", timeDimension: "2025-01 至 2025-12 (月均值)", crs: "WGS84 (EPSG:4326)", bandCount: 12 },
+  },
 ];
 
 const now = new Date();
