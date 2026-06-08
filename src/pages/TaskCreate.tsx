@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, AlertTriangle, FlaskConical } from "lucide-react";
+import { ArrowLeft, AlertTriangle, FlaskConical, Ban } from "lucide-react";
 import { useStore } from "@/store";
 import { cn } from "@/lib/utils";
+import type { DatasetType } from "@/types";
 
 const MODEL_TYPES = [
   { value: "MaxEnt", label: "MaxEnt (最大熵模型)" },
@@ -14,25 +15,37 @@ const MODEL_TYPES = [
 
 export default function TaskCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedDatasetId = searchParams.get("datasetId") || "";
+
   const species = useStore((s) => s.species);
   const datasets = useStore((s) => s.datasets);
   const addTask = useStore((s) => s.addTask);
   const runTaskSimulation = useStore((s) => s.runTaskSimulation);
 
   const availableSpecies = species.filter((sp) => !sp.isPaused);
-  const validDatasets = datasets.filter((d) => d.status === "VALID");
 
   const [selectedSpecies, setSelectedSpecies] = useState("");
-  const [selectedDataset, setSelectedDataset] = useState("");
+  const [selectedDataset, setSelectedDataset] = useState(preselectedDatasetId);
   const [modelType, setModelType] = useState("MaxEnt");
   const [timeHorizon, setTimeHorizon] = useState(50);
   const [warningThreshold, setWarningThreshold] = useState(0.2);
   const [showPausedWarning, setShowPausedWarning] = useState(false);
 
   const selectedSpeciesData = species.find((sp) => sp.id === selectedSpecies);
+  const selectedDatasetData = datasets.find((d) => d.id === selectedDataset);
+
+  const isEnvDataset = selectedDatasetData?.type === "ENVIRONMENTAL";
+
+  const validDatasets = datasets.filter((d) => d.status === "VALID");
+
+  const speciesDistributionDatasets = validDatasets.filter((d) => d.type === "SPECIES_DISTRIBUTION");
+  const environmentalDatasets = validDatasets.filter((d) => d.type === "ENVIRONMENTAL");
+
+  const canSubmit = !!selectedSpecies && !!selectedDataset && !showPausedWarning && !isEnvDataset;
 
   const handleSubmit = () => {
-    if (!selectedSpecies || !selectedDataset) return;
+    if (!selectedSpecies || !selectedDataset || isEnvDataset) return;
 
     const sp = species.find((s) => s.id === selectedSpecies);
     const newTask = {
@@ -106,10 +119,36 @@ export default function TaskCreate() {
             className="w-full bg-forest-700/50 border border-forest-500/30 rounded-lg px-4 py-2.5 text-forest-100 text-sm focus:outline-none focus:border-forest-400"
           >
             <option value="">-- 请选择数据集 --</option>
-            {validDatasets.map((ds) => (
-              <option key={ds.id} value={ds.id}>{ds.name} ({ds.recordCount.toLocaleString()} 条)</option>
-            ))}
+            {speciesDistributionDatasets.length > 0 && (
+              <optgroup label="物种分布数据 (可用于模拟)">
+                {speciesDistributionDatasets.map((ds) => (
+                  <option key={ds.id} value={ds.id}>{ds.name} ({ds.recordCount.toLocaleString()} 条) - {ds.fileName}</option>
+                ))}
+              </optgroup>
+            )}
+            {environmentalDatasets.length > 0 && (
+              <optgroup label="环境变量数据 (仅参考，不可用于创建任务)">
+                {environmentalDatasets.map((ds) => (
+                  <option key={ds.id} value={ds.id}>{ds.name} ({ds.recordCount.toLocaleString()} 条) - {ds.fileName}</option>
+                ))}
+              </optgroup>
+            )}
           </select>
+          {selectedDatasetData && (
+            <div className="mt-2 text-xs text-forest-400 flex items-center gap-3 flex-wrap">
+              <span>类型: <span className={cn("font-medium", selectedDatasetData.type === "SPECIES_DISTRIBUTION" ? "text-sky-300" : "text-violet-300")}>
+                {selectedDatasetData.type === "SPECIES_DISTRIBUTION" ? "物种分布" : "环境变量"}
+              </span></span>
+              <span>文件: <span className="font-mono text-forest-200">{selectedDatasetData.fileName}</span></span>
+            </div>
+          )}
+          {isEnvDataset && (
+            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2 mt-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2.5">
+              <Ban className="w-3.5 h-3.5 shrink-0" />
+              <span>环境变量数据集不能直接用于物种分布模拟任务。请选择物种分布数据集，或在数据管理中上传物种分布数据后再来创建任务。</span>
+            </motion.div>
+          )}
         </div>
 
         <div>
@@ -155,10 +194,10 @@ export default function TaskCreate() {
       <div className="flex items-center gap-4">
         <button
           onClick={handleSubmit}
-          disabled={!selectedSpecies || !selectedDataset || showPausedWarning}
+          disabled={!canSubmit}
           className={cn(
             "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-all",
-            selectedSpecies && selectedDataset && !showPausedWarning
+            canSubmit
               ? "bg-forest-500 hover:bg-forest-600 text-forest-50 shadow-lg shadow-forest-500/20"
               : "bg-forest-700/30 text-forest-500 cursor-not-allowed"
           )}

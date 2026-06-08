@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Trash2, Database, FileText, BarChart3 } from "lucide-react";
+import { Upload, Trash2, Database, FileText, BarChart3, Eye } from "lucide-react";
 import { useStore } from "@/store";
 import { cn } from "@/lib/utils";
 import type { DatasetType, DatasetStatus } from "@/types";
@@ -154,15 +154,24 @@ export default function DataManagement() {
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => removeDataset(dataset.id)}
-                    className={cn(
-                      "p-2 rounded-lg transition-colors shrink-0",
-                      "text-forest-500 hover:text-red-400 hover:bg-red-500/10"
-                    )}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-2 shrink-0">
+                    <Link
+                      to={`/data/${dataset.id}`}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-forest-600/40 text-sm text-forest-200 hover:bg-forest-500/40 transition-colors"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      详情
+                    </Link>
+                    <button
+                      onClick={() => removeDataset(dataset.id)}
+                      className={cn(
+                        "p-2 rounded-lg transition-colors shrink-0",
+                        "text-forest-500 hover:text-red-400 hover:bg-red-500/10"
+                      )}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             );

@@ -16,6 +16,8 @@ import ReportList from "@/pages/ReportList";
 import ReportDetail from "@/pages/ReportDetail";
 import DataExport from "@/pages/DataExport";
 
+import DatasetDetail from "@/pages/DatasetDetail";
+
 export default function App() {
   return (
     <Router>
@@ -24,6 +26,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/data" element={<DataManagement />} />
           <Route path="/data/upload" element={<DataUpload />} />
+          <Route path="/data/:id" element={<DatasetDetail />} />
           <Route path="/tasks" element={<TaskList />} />
           <Route path="/tasks/kanban" element={<TaskKanban />} />
           <Route path="/tasks/create" element={<TaskCreate />} />
